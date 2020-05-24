@@ -1,4 +1,4 @@
-uniform mat4 objToWorldMatrix;
+uniform mat4 objectToWorldMatrix;
 uniform mat4 worldToViewMatrix;
 attribute vec3 aVertexPosition;
 void main(void) {

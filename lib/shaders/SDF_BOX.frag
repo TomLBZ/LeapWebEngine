@@ -1,7 +1,7 @@
 precision mediump float;
-uniform mat4 objToWorldMatrix;
-uniform mat4 worldToViewMatrix;
 uniform vec2 screenSize;
+uniform mat4 objectToWorldMatrix;
+uniform mat4 worldToViewMatrix;
 
 void main() {
     vec2 mathpos;

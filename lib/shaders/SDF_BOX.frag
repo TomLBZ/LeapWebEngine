@@ -1,4 +1,8 @@
 precision mediump float;
+uniform mat4 objToWorldMatrix;
+uniform mat4 worldToViewMatrix;
+uniform vec2 screenSize;
+
 void main() {
     vec2 mathpos;
     mathpos.x = 0.00390625 * (gl_FragCoord.x - 256.0);

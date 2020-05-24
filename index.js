@@ -7,15 +7,15 @@ import { Camera } from './lib/camera.js';
 (async function () {
     await readShaderSourcesAsync();
     let scene = new Scene();
-    scene.addObject(
-        new GSDFBox(
-            [20, 30, 20],
-            "box1",
-            new Material(MatType.SDF_BOX),
-            [0, 0, 0],
-            [0, 0, 0]
-        )
-    );
+    // scene.addObject(
+    //     new GSDFBox(
+    //         [20, 30, 20],
+    //         "box1",
+    //         new Material(MatType.SDF_BOX),
+    //         [0, 0, 0],
+    //         [0, 0, 0]
+    //     )
+    // );
     scene.addObject(
         new GSDFSphere(
             30,

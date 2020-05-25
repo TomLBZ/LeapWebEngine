@@ -4,7 +4,11 @@ import { WebGLRenderer } from './lib/renderer.js';
 import { readShaderSourcesAsync, Material, MatType } from './lib/material.js';
 import { Camera } from './lib/camera.js';
 
+import { runTests } from './test.js';
+
 (async function () {
+    runTests();
+    
     await readShaderSourcesAsync();
     let scene = new Scene();
     // scene.addObject(

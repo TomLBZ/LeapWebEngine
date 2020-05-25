@@ -72,9 +72,11 @@ import { matrixToString } from './lib/matrix.js';
 
     //create camera.
     let camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
-    camera.setEye([0, 0, 105], [0, 0, 1], [0, 1, 0]);
+    camera.setLookDirection([0, 0, 105], [0, 0, -1], [0, 1, 0]);
     debugConsole.addLabel("camera matrix", () =>  matrixToString(camera.getWorldToViewMatrix()));
     debugConsole.addLabel("camera pos", () =>  camera.pos);
+    debugConsole.addLabel("camera direction", () =>  camera.direction);
+    debugConsole.addLabel("camera up", () =>  camera.up);
 
     let renderFunc = () => renderer.renderScene(scene, camera);
     debugConsole.addCommands("small step", {
@@ -96,6 +98,14 @@ import { matrixToString } from './lib/matrix.js';
         "←↓": () => {camera.pos[0] = camera.pos[0] - 10; camera.pos[1] = camera.pos[1] - 10; renderFunc();},
         "forward(-)": () => {camera.pos[2] = camera.pos[2] - 10; renderFunc();},
         "backward(+)": () => {camera.pos[2] = camera.pos[2] + 10; renderFunc();}
+    });
+    debugConsole.addCommands("camera direction x", {
+        "←": () => {camera.direction[0] = camera.direction[0] - 0.1; renderFunc();},
+        "→": () => {camera.direction[0] = camera.direction[0] + 0.1; renderFunc();},
+    });
+    debugConsole.addCommands("camera up x", {
+        "←": () => {camera.up[0] = camera.up[0] - 0.1; renderFunc();},
+        "→": () => {camera.up[0] = camera.up[0] + 0.1; renderFunc();},
     });
     renderFunc();
 })();

@@ -63,27 +63,38 @@ import { matrixToString } from './lib/matrix.js';
     // scene.addObject(
     //     new GSDFBox(
     //         [20, 30, 20],
-    //         "box1",
-    //         new Material(MatType.SDF_BOX),
-    //         [0, 0, 0],
+    //         "sbox1",
+    //         new Material(MatType.SDF_BOX, [0.6, 0.2, 0.8, 1]),
+    //         [0, 30, 0],
     //         [0, 0, 0]
     //     )
     // );
 
-    // scene.addObject(
-    //     new GSDFSphere(
-    //         30,
-    //         "sph1",
-    //         new Material(MatType.SDF_SPHERE),
-    //         [0, 0, 0],
-    //         [0, 0, 0]
-    //     )
-    // );
+    scene.addObject(
+        new GSDFSphere(
+            20,
+            "ssph1",
+            new Material(MatType.SDF_SPHERE, [0.6, 0.8, 0.1, 1]),
+            [15, 10, 0],
+            [0, 0, 0]
+        )
+    );
+
+    scene.addObject(
+        new GSDFSphere(
+            20,
+            "ssph2",
+            new Material(MatType.SDF_SPHERE, [0.6, 0.8, 0.1, 1]),
+            [5, 7, 0],
+            [0, 0, 0]
+        )
+    );
 
     //create camera.
     let camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
     camera.setLookDirection([0, 0, 105], [0, 0, -1], [0, 1, 0]);
-    debugConsole.addLabel("camera matrix", () =>  matrixToString(camera.getWorldToViewMatrix()));
+    debugConsole.addLabel("camera World->View Matrix", () =>  matrixToString(camera.getWorldToViewMatrix()));
+    debugConsole.addLabel("camera Projection Matrix", () =>  matrixToString(camera.getProjectionMatrix()));
     debugConsole.addLabel("camera pos", () =>  camera.pos);
     debugConsole.addLabel("camera direction", () =>  camera.direction);
     debugConsole.addLabel("camera up", () =>  camera.up);

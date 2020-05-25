@@ -32,10 +32,20 @@ import { matrixToString } from './lib/matrix.js';
 
     scene.addObject(
         new GMeshBox(
-            [40, 50, 130],
+            [50, 50, 50],
             "mbox1",
             new Material(MatType.MESH_DEFAULT),
-            [0, 0, 0],
+            [-20, 0, 0],
+            [0, 0, 0]
+        )
+    );
+
+    scene.addObject(
+        new GMeshBox(
+            [30, 80, 30],
+            "mbox2",
+            new Material(MatType.MESH_DEFAULT),
+            [40, 0, 0],
             [0, 0, 0]
         )
     );
@@ -61,7 +71,8 @@ import { matrixToString } from './lib/matrix.js';
     // );
 
     //create camera.
-    let camera = new Camera([0, 0, 50], [0, 0, 1], [0, 1, 0]);
+    let camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
+    camera.setEye([0, 0, 105], [0, 0, 1], [0, 1, 0]);
     debugConsole.addLabel("camera matrix", () =>  matrixToString(camera.getWorldToViewMatrix()));
     debugConsole.addLabel("camera pos", () =>  camera.pos);
 
@@ -71,20 +82,20 @@ import { matrixToString } from './lib/matrix.js';
         "→": () => {camera.pos[0] = camera.pos[0] + 1; renderFunc();},
         "↑": () => {camera.pos[1] = camera.pos[1] + 1; renderFunc();},
         "↓": () => {camera.pos[1] = camera.pos[1] - 1; renderFunc();},
-        "move forward": () => {camera.pos[2] = camera.pos[2] + 1; renderFunc();},
-        "move backward": () => {camera.pos[2] = camera.pos[2] - 1; renderFunc();}
+        "forward(-)": () => {camera.pos[2] = camera.pos[2] - 1; renderFunc();},
+        "backward(+)": () => {camera.pos[2] = camera.pos[2] + 1; renderFunc();}
     });
     debugConsole.addCommands("big step", {
-        "←": () => {camera.pos[0] = camera.pos[0] - 5; renderFunc();},
-        "→": () => {camera.pos[0] = camera.pos[0] + 5; renderFunc();},
-        "↑": () => {camera.pos[1] = camera.pos[1] + 5; renderFunc();},
-        "↓": () => {camera.pos[1] = camera.pos[1] - 5; renderFunc();},
-        "→↓": () => {camera.pos[0] = camera.pos[0] + 5; camera.pos[1] = camera.pos[1] - 5; renderFunc();},
-        "←↑": () => {camera.pos[0] = camera.pos[0] - 5; camera.pos[1] = camera.pos[1] + 5; renderFunc();},
-        "→↑": () => {camera.pos[0] = camera.pos[0] + 5; camera.pos[1] = camera.pos[1] + 5; renderFunc();},
-        "←↓": () => {camera.pos[0] = camera.pos[0] - 5; camera.pos[1] = camera.pos[1] - 5; renderFunc();},
-        "move forward": () => {camera.pos[2] = camera.pos[2] + 5; renderFunc();},
-        "move backward": () => {camera.pos[2] = camera.pos[2] - 5; renderFunc();}
+        "←": () => {camera.pos[0] = camera.pos[0] - 10; renderFunc();},
+        "→": () => {camera.pos[0] = camera.pos[0] + 10; renderFunc();},
+        "↑": () => {camera.pos[1] = camera.pos[1] + 10; renderFunc();},
+        "↓": () => {camera.pos[1] = camera.pos[1] - 10; renderFunc();},
+        "→↓": () => {camera.pos[0] = camera.pos[0] + 10; camera.pos[1] = camera.pos[1] - 10; renderFunc();},
+        "←↑": () => {camera.pos[0] = camera.pos[0] - 10; camera.pos[1] = camera.pos[1] + 10; renderFunc();},
+        "→↑": () => {camera.pos[0] = camera.pos[0] + 10; camera.pos[1] = camera.pos[1] + 10; renderFunc();},
+        "←↓": () => {camera.pos[0] = camera.pos[0] - 10; camera.pos[1] = camera.pos[1] - 10; renderFunc();},
+        "forward(-)": () => {camera.pos[2] = camera.pos[2] - 10; renderFunc();},
+        "backward(+)": () => {camera.pos[2] = camera.pos[2] + 10; renderFunc();}
     });
     renderFunc();
 })();

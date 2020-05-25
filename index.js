@@ -34,7 +34,7 @@ import { matrixToString } from './lib/matrix.js';
         new GMeshBox(
             [50, 50, 50],
             "mbox1",
-            new Material(MatType.MESH_DEFAULT),
+            new Material(MatType.MESH_DEFAULT, [0.2, 1, 0.3, 1]),
             [-20, 0, 0],
             [0, 0, 0]
         )
@@ -44,8 +44,18 @@ import { matrixToString } from './lib/matrix.js';
         new GMeshBox(
             [30, 80, 30],
             "mbox2",
-            new Material(MatType.MESH_DEFAULT),
+            new Material(MatType.MESH_DEFAULT, [1, 0.2, 0.3, 1]),
             [40, 0, 0],
+            [0, 0, 0]
+        )
+    );
+
+    scene.addObject(
+        new GMeshBox(
+            [150, 20, 20],
+            "mbox3",
+            new Material(MatType.MESH_DEFAULT, [0.2, 0.2, 1, 1]),
+            [0, 0, 0],
             [0, 0, 0]
         )
     );

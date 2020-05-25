@@ -3,7 +3,5 @@ uniform vec2 screenSize;
 
 void main() {
     vec2 mathpos;
-    mathpos.x = 0.00390625 * (gl_FragCoord.x - 256.0);
-    mathpos.y = 0.00390625 * (gl_FragCoord.y - 256.0);
-    gl_FragColor = vec4(sin(20.0*(sqrt(mathpos.x*mathpos.x + mathpos.y*mathpos.y))), sin(15.0*(sqrt(mathpos.x*mathpos.x + mathpos.y*mathpos.y))), sin(10.0*(mathpos.x*mathpos.x + mathpos.y*mathpos.y)), 1);
+    gl_FragColor = vec4(0.2, 1, 0.5, 1);
 }

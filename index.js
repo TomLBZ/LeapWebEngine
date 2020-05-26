@@ -1,7 +1,7 @@
 import { GSDFBox, GSDFSphere, GMeshBox, GMeshSphere } from './lib/gobject.js';
 import { Scene } from './lib/scene.js';
 import { WebGLRenderer } from './lib/renderer.js';
-import { readShaderSourcesAsync, Material, MatType } from './lib/material.js';
+import { readShaderSourcesAsync, Material, RENDER_TYPE } from './lib/material.js';
 import { Camera } from './lib/camera.js';
 import { DebugConsole } from './lib/debug.js';
 
@@ -34,7 +34,7 @@ import { matrixToString } from './lib/matrix.js';
         new GMeshBox(
             [50, 50, 50],
             "mbox1",
-            new Material(MatType.MESH_DEFAULT, [0.2, 1, 0.3, 1]),
+            new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 1, 0.3, 1]),
             [-20, 0, 0],
             [0, 0, 0]
         )
@@ -44,7 +44,7 @@ import { matrixToString } from './lib/matrix.js';
         new GMeshBox(
             [30, 80, 30],
             "mbox2",
-            new Material(MatType.MESH_DEFAULT, [1, 0.2, 0.3, 1]),
+            new Material(RENDER_TYPE.MESH_DEFAULT, [1, 0.2, 0.3, 1]),
             [40, 0, 0],
             [0, 0, 0]
         )
@@ -54,7 +54,7 @@ import { matrixToString } from './lib/matrix.js';
         new GMeshBox(
             [150, 20, 20],
             "mbox3",
-            new Material(MatType.MESH_DEFAULT, [0.2, 0.2, 1, 1]),
+            new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 0.2, 1, 1]),
             [0, 0, 0],
             [0, 0, 0]
         )
@@ -64,7 +64,7 @@ import { matrixToString } from './lib/matrix.js';
     //     new GSDFBox(
     //         [20, 30, 20],
     //         "sbox1",
-    //         new Material(MatType.SDF_BOX, [0.6, 0.2, 0.8, 1]),
+    //         new Material(RENDER_TYPE.SDF_BOX, [0.6, 0.2, 0.8, 1]),
     //         [0, 30, 0],
     //         [0, 0, 0]
     //     )
@@ -74,7 +74,7 @@ import { matrixToString } from './lib/matrix.js';
         new GSDFSphere(
             20,
             "ssph1",
-            new Material(MatType.SDF_SPHERE, [0.6, 0.8, 0.1, 1]),
+            new Material(RENDER_TYPE.SDF_SPHERE, [0.9, 0.8, 0.9, 1]),
             [15, 10, 0],
             [0, 0, 0]
         )
@@ -82,10 +82,20 @@ import { matrixToString } from './lib/matrix.js';
 
     scene.addObject(
         new GSDFSphere(
-            20,
+            15,
             "ssph2",
-            new Material(MatType.SDF_SPHERE, [0.6, 0.8, 0.1, 1]),
-            [5, 7, 0],
+            new Material(RENDER_TYPE.SDF_SPHERE, [0.1, 0.8, 0.9, 1]),
+            [0, -20, 0],
+            [0, 0, 0]
+        )
+    );
+
+    scene.addObject(
+        new GSDFSphere(
+            18,
+            "ssph3",
+            new Material(RENDER_TYPE.SDF_SPHERE, [0.9, 0.8, 0.1, 1]),
+            [-16, 19, 14],
             [0, 0, 0]
         )
     );

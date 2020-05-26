@@ -30,45 +30,45 @@ import { matrixToString } from './lib/matrix.js';
     let scene = new Scene();
     debugConsole.addLabel("scene object#", () => scene.objectKeys());
 
-    scene.addObject(
-        new GMeshBox(
-            [50, 50, 50],
-            "mbox1",
-            new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 1, 0.3, 1]),
-            [-20, 0, 0],
-            [0, 0, 0]
-        )
-    );
-
-    scene.addObject(
-        new GMeshBox(
-            [30, 80, 30],
-            "mbox2",
-            new Material(RENDER_TYPE.MESH_DEFAULT, [1, 0.2, 0.3, 1]),
-            [40, 0, 0],
-            [0, 0, 0]
-        )
-    );
-
-    scene.addObject(
-        new GMeshBox(
-            [150, 20, 20],
-            "mbox3",
-            new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 0.2, 1, 1]),
-            [0, 0, 0],
-            [0, 0, 0]
-        )
-    );
-
     // scene.addObject(
-    //     new GSDFBox(
-    //         [20, 30, 20],
-    //         "sbox1",
-    //         new Material(RENDER_TYPE.SDF_BOX, [0.6, 0.2, 0.8, 1]),
-    //         [0, 30, 0],
+    //     new GMeshBox(
+    //         [50, 50, 50],
+    //         "mbox1",
+    //         new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 1, 0.3, 1]),
+    //         [-20, 0, 0],
     //         [0, 0, 0]
     //     )
     // );
+
+    // scene.addObject(
+    //     new GMeshBox(
+    //         [30, 80, 30],
+    //         "mbox2",
+    //         new Material(RENDER_TYPE.MESH_DEFAULT, [1, 0.2, 0.3, 1]),
+    //         [40, 0, 0],
+    //         [0, 0, 0]
+    //     )
+    // );
+
+    // scene.addObject(
+    //     new GMeshBox(
+    //         [150, 20, 20],
+    //         "mbox3",
+    //         new Material(RENDER_TYPE.MESH_DEFAULT, [0.2, 0.2, 1, 1]),
+    //         [0, 0, 0],
+    //         [0, 0, 0]
+    //     )
+    // );
+
+    scene.addObject(
+        new GSDFBox(
+            [20, 20, 30],
+            "sbox1",
+            new Material(RENDER_TYPE.SDF_BOX, [0.6, 0.2, 0.8, 1]),
+            [-50, -50, 0],
+            [0, 0, 0]
+        )
+    );
 
     scene.addObject(
         new GSDFSphere(

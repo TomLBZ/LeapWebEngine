@@ -12,6 +12,8 @@ uniform mat4 projectionMatrix;
 uniform vec4 diffuseColor;
 uniform vec2 screenSize;
 uniform float radius;
+const float MAX_STEPS = 100.;
+const float MIN_DIST = 1e-5;
 
 vec3 screenToVec3(vec2 uniformPos){
     return vec3(uniformPos.x/projectionMatrix[0][0],
@@ -30,19 +32,26 @@ void main(){
     vec4 sphereCenter=worldToViewMatrix*objectToWorldMatrix*vec4(0,0,0,1);
     vec3 dir=normalize(screenToVec3(uniformPos));
     vec3 currentPos=vec3(0,0,0);
-    float dis=1.;
-    for(float i=0.; i<100.; i++) {
+    float dis=MIN_DIST;
+    float steps = 0.;
+    float weight = 0.;
+    float lastdis = MIN_DIST;
+    for(float i=0.; i<MAX_STEPS; i++) {
+        lastdis = dis;
         dis=sphereSDF(currentPos,sphereCenter.xyz,radius);
-        if(abs(dis)<0.) break;
+        if(abs(dis)<MIN_DIST) break;
         currentPos=currentPos+dir*1.*dis;
+        steps++;
     }
-    if (abs(dis) < 1e-5){
+    if (abs(dis) < MIN_DIST){
         gl_FragDepthEXT = distanceToZBufferDepth(-currentPos.z);
-        if(sin(2.*length(currentPos)) > 0.) {
-            gl_FragColor=vec4(1,1,1,1)*diffuseColor;
-        }else{
-            gl_FragColor=vec4(0.7,0.7,0.7,1)*diffuseColor;
-        }
+        //if(sin(2.*length(currentPos)) > 0.) {
+        //    gl_FragColor=vec4(1,1,1,1)*diffuseColor;
+        //}else{
+        //    gl_FragColor=vec4(0.7,0.7,0.7,1)*diffuseColor;
+        //}
+        weight = sin(1.-abs(dis/lastdis));
+        gl_FragColor = vec4(weight,weight,weight,1)*diffuseColor;
     } else {
         gl_FragDepthEXT = 1.0;
     }

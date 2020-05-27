@@ -38,9 +38,11 @@ import { matrixToString } from './lib/matrix.js';
     );
     let camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
     camera.setLookDirection([0, 0, 105], [0, 0, -1], [0, 1, 0]);
+    let mygame = new Game();
     debugConsole.addLabel("camera pos", () =>  camera.pos);
     debugConsole.addLabel("camera direction", () =>  camera.direction);
     debugConsole.addLabel("camera up", () =>  camera.up);
+    debugConsole.addLabel("fps", () => mygame.Fps);
     //function update(campos, camangle){
 
     //}
@@ -50,7 +52,6 @@ import { matrixToString } from './lib/matrix.js';
     //function end(){
         
     //}
-    let mygame = new Game();
     mygame.windowOrRoot = window;
     //renderer.renderScene(scene, camera);   
     mygame.setDraw(draw);

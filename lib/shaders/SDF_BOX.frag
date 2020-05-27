@@ -23,11 +23,6 @@ float distanceToZBufferDepth(float distance) {
     return 0.5*(-A*distance + B) / distance + 0.5;
 }
 void main() {
-    vec2 mathpos;
-    mathpos.x = 0.00390625 * (gl_FragCoord.x - 256.0);
-    mathpos.y = 0.00390625 * (gl_FragCoord.y - 256.0);
-    gl_FragColor = diffuseColor;
-
     vec2 uniformPos = (gl_FragCoord.xy/screenSize-vec2(0.5,0.5))*2.;
     vec4 boxCenter=worldToViewMatrix*objectToWorldMatrix*vec4(0,0,0,1);
     vec3 dir=normalize(screenToVec3(uniformPos));

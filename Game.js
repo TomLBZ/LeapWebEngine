@@ -76,7 +76,8 @@ export class Game{
         this.lastFrameTimeMs = timestamp;
         this.lastFpsUpdate = timestamp;
         this.framesSinceLastFpsUpdate = 0;
-        this.rafHandle = requestAnimationFrame(this.animate);//start main loop
+        let animate = this.animateEnclosureGenerator();
+        this.rafHandle = requestAnimationFrame(animate);//start main loop
     }
     start = () => {
         if (!this.started) {
@@ -92,7 +93,7 @@ export class Game{
         return this;
     }
     isRunning = () => {return this.running;}
-    animate(timestamp){
+    animateEnclosureGenerator(){
         let that = this;
         function _animate(timestamp){
             that.rafHandle = requestAnimationFrame(_animate);//handle for cancellation
@@ -120,6 +121,6 @@ export class Game{
             that._end(that.Fps, that.panic);
             that.panic = false;
         } 
-        _animate(timestamp);
+        return _animate;
     }
 }

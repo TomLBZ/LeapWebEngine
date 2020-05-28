@@ -92,30 +92,34 @@ export class Game{
         return this;
     }
     isRunning = () => {return this.running;}
-    animate = (timestamp) => {
-        this.rafHandle = requestAnimationFrame(this.animate);//handle for cancellation
-        if (timestamp < this.lastFrameTimeMs + this.minFrameDelay) {return;}//caps fps
-        this.frameDelta += timestamp - this.lastFrameTimeMs;//total time passed
-        this.lastFrameTimeMs = timestamp;//update lastframe timestamp
-        this._begin(timestamp, this.frameDelta);
-        if (timestamp > this.lastFpsUpdate + this.fpsUpdateInterval) {
-            this.Fps = this.fpsAlpha * this.framesSinceLastFpsUpdate * 1000 / (timestamp - this.lastFpsUpdate)
-                + (1 - this.fpsAlpha) * this.Fps;
-            this.lastFpsUpdate = timestamp;
-            this.framesSinceLastFpsUpdate = 0;
-        }
-        this.framesSinceLastFpsUpdate++;
-        this.numUpdateSteps = 0;
-        while (this.frameDelta >= this.simulationTimeStep) {
-            this._update(this.simulationTimeStep);
-            this.frameDelta -= this.simulationTimeStep;
-            if (++this.numUpdateSteps >= this.bailOut) {
-                this.panic = true;
-                break;
+    animate(timestamp){
+        let that = this;
+        function _animate(timestamp){
+            that.rafHandle = requestAnimationFrame(_animate);//handle for cancellation
+            if (timestamp < that.lastFrameTimeMs + that.minFrameDelay) {return;}//caps fps
+            that.frameDelta += timestamp - that.lastFrameTimeMs;//total time passed
+            that.lastFrameTimeMs = timestamp;//update lastframe timestamp
+            that._begin(timestamp, that.frameDelta);
+            if (timestamp > that.lastFpsUpdate + that.fpsUpdateInterval) {
+                that.Fps = that.fpsAlpha * that.framesSinceLastFpsUpdate * 1000 / (timestamp - that.lastFpsUpdate)
+                    + (1 - that.fpsAlpha) * that.Fps;
+                that.lastFpsUpdate = timestamp;
+                that.framesSinceLastFpsUpdate = 0;
             }
-        }
-        this._draw(this.frameDelta / this.simulationTimeStep);
-        this._end(this.Fps, this.panic);
-        this.panic = false;
-    };
+            that.framesSinceLastFpsUpdate++;
+            that.numUpdateSteps = 0;
+            while (that.frameDelta >= that.simulationTimeStep) {
+                that._update(that.simulationTimeStep);
+                that.frameDelta -= that.simulationTimeStep;
+                if (++that.numUpdateSteps >= that.bailOut) {
+                    that.panic = true;
+                    break;
+                }
+            }
+            that._draw(that.frameDelta / that.simulationTimeStep);
+            that._end(that.Fps, that.panic);
+            that.panic = false;
+        } 
+        _animate(timestamp);
+    }
 }

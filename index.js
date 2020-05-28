@@ -52,9 +52,10 @@ import { matrixToString } from './lib/matrix.js';
     //function end(){
         
     //}
-    mygame.windowOrRoot = window;
-    //renderer.renderScene(scene, camera);   
+    mygame.SetWindowOrRoot(window);
     mygame.setDraw(draw);
-    mygame.start();
-    
+    debugConsole.addCommands("Start / Stop", {
+        "Start": () => {mygame.start();},
+        "Stop": () => {mygame.stop();},
+    });
 })();

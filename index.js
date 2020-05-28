@@ -6,6 +6,7 @@ import { Camera } from './lib/camera.js';
 import { GAME_DEFAULTS, Game } from './Game.js';
 import { DebugConsole } from './lib/debug.js';
 import { matrixToString } from './lib/matrix.js';
+import { IMAGE_SETTINGS, StereoProcessor} from './lib/images.js';
 
 "use strict";
 (async function () {
@@ -21,19 +22,11 @@ import { matrixToString } from './lib/matrix.js';
     debugConsole.addLabel("scene object#", () => scene.objectKeys());
     scene.addObject(
         new GSDFWorld(
+            [27, 113, 57],
             "world",
             new Material(RENDER_TYPE.SDF_WORLD, [0.5,0.5,1.,0.7]),
             [0,0,0],
             [0,0,0]
-        )
-    );
-    scene.addObject(
-        new GSDFBox(
-            [20, 20, 30],
-            "sbox1",
-            new Material(RENDER_TYPE.SDF_BOX, [0.6, 0.2, 0.8, 1]),
-            [-50, -50, 0],
-            [0, 0, 0]
         )
     );
     let camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
@@ -43,9 +36,12 @@ import { matrixToString } from './lib/matrix.js';
     debugConsole.addLabel("camera direction", () =>  camera.direction);
     debugConsole.addLabel("camera up", () =>  camera.up);
     debugConsole.addLabel("fps", () => mygame.Fps);
-    //function update(campos, camangle){
-
-    //}
+    var totaltime = 0.;
+    debugConsole.addLabel("animationTimeField", () => renderer.animationTimeField);
+    function update(timestep){
+        renderer.animationTimeField = totaltime;
+        totaltime += timestep * 0.001;
+    }
     function draw(){
         renderer.renderScene(scene, camera);    
     }
@@ -53,9 +49,11 @@ import { matrixToString } from './lib/matrix.js';
         
     //}
     mygame.SetWindowOrRoot(window);
+    mygame.setUpdate(update);
     mygame.setDraw(draw);
     debugConsole.addCommands("Start / Stop", {
         "Start": () => {mygame.start();},
         "Stop": () => {mygame.stop();},
     });
+    mygame.start();
 })();

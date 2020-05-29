@@ -9,13 +9,16 @@
 #define SHADOW_ENLIGHTEN                    .25
 #define NORMAL_SAMPLING_NUDGE               .0015
 precision mediump float;
+uniform mat4 objectToWorldMatrix;
+uniform mat4 worldToViewMatrix;
 uniform mat4 projectionMatrix;
 uniform vec2 screenSize;
-uniform vec3 rbinit;
 uniform float time;
+uniform vec3 rbinit;
 
 float sdfmap(vec3 p){//sdf for the rounded box
-    float n = sin(dot(floor(p), rbinit));//vec3(27, 113, 57)
+    p = (worldToViewMatrix * objectToWorldMatrix * vec4(p[0], p[1], p[2], -1)).xyz;
+    float n = sin(dot(floor(p), vec3(27, 113, 57)));//vec3(27, 113, 57)
     vec3 rnd = fract(vec3(2097152, 262144, 32768)*n)*.16 - .08;//pseudo rnd
     p = fract(p + rnd) - .5;
     p = abs(p); 
@@ -64,9 +67,10 @@ vec3 getNormal( in vec3 p ){// Tetrahedral normal by IQ.
 }
 vec3 getObjectColor(vec3 p){//use vect position to generate color pallet
     vec3 intp = floor(p);
-    float rnd = fract(sin(dot(intp, vec3(27.17, 112.61, 57.53)))*43758.5453);//pseudo rnd
+    float factor = 43758.5453;
+    float rnd = fract(sin(dot(intp, vec3(27.17, 112.61, 57.53)))*factor);//pseudo rnd
     vec3 col = (fract(dot(intp, vec3(.5))) > .001)? 
-         .5 + .45 * cos(mix(3., 4., rnd) + vec3(.9, .45, 1.5)) //vec3(.6, .3, 1.)
+         .5 + .45 * cos(mix(3., 4., rnd) + vec3(.9 , .45, 1.5)) //vec3(.6, .3, 1.)
          : vec3(.7 + .3 * rnd);
     if(fract(rnd * 1183.5437 + .42) > .65) col = col.zyx;
     return col;
@@ -84,32 +88,34 @@ vec3 doColor(in vec3 surfacePos, in vec3 rayDirection, in vec3 surfaceNormal, in
     sceneCol = mix(sceneCol, vec3(0), fogF); // Applying the background fog.Just black
     return sceneCol;
 }
+vec3 screenToVec3(vec2 uniformPos){
+    return vec3(uniformPos.x / projectionMatrix[0][0], 
+                uniformPos.y / projectionMatrix[1][1], -1.);
+}
 float distanceToZBufferDepth(float distance) {
     float A = projectionMatrix[2].z;
     float B = projectionMatrix[3].z;
     return 0.5*(-A*distance + B) / distance + 0.5;
 }
 void mainImage( out vec4 fragColor, in vec2 fragCoord ){
-	vec2 uv = (fragCoord.xy - screenSize * .5) / screenSize.y;// Screen coordinates.
-    vec3 rd = normalize(vec3(uv, 1.));// Unit direction ray.
-    float cs = cos(time * .25), si = sin(time * .25);// Some cheap camera movement
-    rd.xy = mat2(cs, si, -si, cs) * rd.xy;
-    rd.xz = mat2(cs, si, -si, cs) * rd.xz;
-    vec3 ro = vec3(0., 0., time * 1.5);// Ray origin. Doubling as the surface position, in this particular example
-    vec3 lp = ro + vec3(0., 1., -.5);// Light position. Set in the vicinity the ray origin.
-    float steplen = trace(ro, rd);// FIRST PASS.
+    vec2 unitScreenPos = (gl_FragCoord.xy / screenSize - vec2(0.5, 0.5)) * 2.;
+    vec4 sdfCenter = worldToViewMatrix * objectToWorldMatrix * vec4(0, 0, 0, -1);
+    vec3 raydir=normalize(screenToVec3(unitScreenPos));
+    vec3 camO = vec3(0., 0., 0.);// Ray origin.
+    vec3 lightPos = camO + vec3(0., 1., -.5);// Light position.
+    float steplen = trace(camO, raydir);// FIRST PASS.
     gl_FragDepthEXT = distanceToZBufferDepth(steplen);//move to depth buffer
-    ro += rd * steplen;// Advancing the ray origin, "ro," to the new hit point.
-    vec3 sn = getNormal(ro);// Retrieving the normal at the hit point.
-    vec3 sceneColor = doColor(ro, rd, sn, lp, steplen);// Retrieving the color at the hit point, which is now "ro."
-    float sh = softShadow(ro +  sn * .0015, lp, 16.);// Checking to see if the surface is in shadow
-    rd = reflect(rd, sn);// SECOND PASS - REFLECTED RAY
-    steplen = traceReflection(ro +  sn * .003, rd);//nudge the ray off of the surface or it'll intersect with the same surface
-    ro += rd * steplen;// Advancing the ray origin, "ro," to the new reflected hit point.
-    sn = getNormal(ro);// Retrieving the normal at the reflected hit point.
-    sceneColor += doColor(ro, rd, sn, lp, steplen) * .35;// Coloring the reflected hit point, then adding a portion of it to the final scene color.
-    sceneColor *= sh;// Multiply the shadow from the first pass by the final scene color.
-	fragColor = vec4(sqrt(clamp(sceneColor, 0., 1.)), 1);// Clamping the scene color, performing some rough gamma correction
+    camO += raydir * steplen;// Advancing camO to the new hit point.
+    vec3 surfaceNormal = getNormal(camO);// normal at the hit point.
+    vec3 sceneColor = doColor(camO, raydir, surfaceNormal, lightPos, steplen);// color at the hit point
+    float shadow = softShadow(camO + surfaceNormal * .0015, lightPos, 16.);// Checking if the surface is in shadow
+    raydir = reflect(raydir, surfaceNormal);// SECOND PASS - REFLECTED RAY
+    steplen = traceReflection(camO + surfaceNormal * .003, raydir);//nudge the ray off of the surface
+    camO += raydir * steplen;// Advancing camO to the reflected hit point.
+    surfaceNormal = getNormal(camO);// normal at the reflected hit point.
+    sceneColor += doColor(camO, raydir, surfaceNormal, lightPos, steplen) * .35;// Coloring the reflected hit point
+    sceneColor *= shadow;// Multiply the shadow from the first pass by the final scene color.
+	fragColor = vec4(sqrt(clamp(sceneColor, 0., 1.)), 1);// Clamping the scene color
 }
 void main(){
     vec4 fragColor;

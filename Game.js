@@ -26,11 +26,12 @@ export class Game{
         this.panic = false;
         this.rafHandle;//id of current frame used for cancellation
         this._begin = this.noop;
-        this._update = this.noop;
+        this._update = this.nooptrue;
         this._draw = this.noop;
         this._end = this.noop;
     }
     noop(){}//js trick, empty functions are faster than conditions
+    nooptrue(){return true;}
     SetWindowOrRoot(value){ 
         this.windowOrRoot = typeof value === 'object' ? value : this.windowOrRoot; 
     }
@@ -112,15 +113,16 @@ export class Game{
             }
             that.framesSinceLastFpsUpdate++;
             that.numUpdateSteps = 0;
+            let updated = false;
             while (that.frameDelta >= that.simulationTimeStep) {
-                that._update(that.simulationTimeStep);
+                updated = that._update(that.simulationTimeStep);
                 that.frameDelta -= that.simulationTimeStep;
                 if (++that.numUpdateSteps >= that.bailOut) {
                     that.panic = true;
                     break;
                 }
             }
-            that._draw(that.frameDelta / that.simulationTimeStep);
+            if (updated) { that._draw(that.frameDelta / that.simulationTimeStep); }
             that._end(that.Fps, that.panic);
             that.panic = false;
         } 

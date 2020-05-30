@@ -3,10 +3,10 @@ import { Scene } from './lib/scene.js';
 import { WebGLRenderer } from './lib/renderer.js';
 import { readShaderSourcesAsync, Material, RENDER_TYPE } from './lib/material.js';
 import { Camera } from './lib/camera.js';
-import { GAME_DEFAULTS, Game } from './Game.js';
+import { Game } from './Game.js';
 import { DebugConsole } from './lib/debug.js';
-import { vectorDot } from './lib/matrix.js';
-import { IMAGE_SETTINGS, StereoProcessor} from './lib/images.js';
+import { Vec3 } from './lib/matrix.js';
+//import { IMAGE_SETTINGS, StereoProcessor} from './lib/images.js';
 import { Player } from './lib/player.js';
 
 "use strict";
@@ -51,24 +51,11 @@ import { Player } from './lib/player.js';
     function update(timestep){
         renderer.animationTimeField = totaltime;
         totaltime += timestep * 0.001;
-        let pos4 = [camera.pos[0], camera.pos[1], camera.pos[2], 1.];
-        let dir4 = [camera.direction[0], camera.direction[1], camera.direction[2], 1.];
-        let up4 = [camera.up[0], camera.up[1], camera.up[2], 1.];
-        let newpos = [  vectorDot(player.RotationalMatrix[0], pos4), 
-                        vectorDot(player.RotationalMatrix[1], pos4),
-                        vectorDot(player.RotationalMatrix[2], pos4),
-                        vectorDot(player.RotationalMatrix[3], pos4)];
-        let newdir = [  vectorDot(player.RotationalMatrix[0], dir4), 
-                        vectorDot(player.RotationalMatrix[1], dir4),
-                        vectorDot(player.RotationalMatrix[2], dir4),
-                        vectorDot(player.RotationalMatrix[3], dir4)];
-        let newup = [   vectorDot(player.RotationalMatrix[0], up4), 
-                        vectorDot(player.RotationalMatrix[1], up4),
-                        vectorDot(player.RotationalMatrix[2], up4),
-                        vectorDot(player.RotationalMatrix[3], up4)];
-        camera.setLookDirection([newpos[0], newpos[1], newpos[2]], 
-                                [newdir[0], newdir[1], newdir[2]], 
-                                [newup[0], newup[1], newup[2]]);
+        let up3 = new Vec3(camera.up);
+        let dir3 = new Vec3(camera.direction);
+        let newup = player.RotationalMatrix.MultVec(up3)
+        let newdir = player.RotationalMatrix.MultVec(dir3);
+        camera.setLookDirection(camera.pos, newdir.ToArray(), newup.ToArray());
         if (player.KeyInput.Start) { return true; }
         if (player.KeyInput.Pause) { return false; }
         if (player.KeyInput.Left) { camera.pos[0] -= player.Speed; }

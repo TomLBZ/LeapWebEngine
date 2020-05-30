@@ -48,6 +48,7 @@ import { Player } from './lib/player.js';
     var player = new Player(window, camera, pobj, canvas);
     debugConsole.addLabel("fps", () => mygame.Fps);
     debugConsole.addLabel("animationTimeField", () => renderer.animationTimeField);
+    debugConsole.addLabel("PlayerRotationalMatrix", () => player.RotationalMatrix.ToString());
     function update(timestep){
         renderer.animationTimeField = totaltime;
         totaltime += timestep * 0.001;

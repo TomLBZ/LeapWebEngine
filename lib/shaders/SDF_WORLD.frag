@@ -69,9 +69,26 @@ float sdf_infinite_cubes(vec3 p){//sdf for the rounded box
     p = abs(p); 
     return max(p.x, max(p.y, p.z)) - 0.2 + dot(p, p)*0.5;
 }
+float sdf_opUnion(float f1, float f2){return min(f1, f2);}
+float sdf_opIntersect(float f1, float f2){return max(f1, f2);}
+float sdf_opSubtract(float f1, float f2){return max(-f1, f2);}
+float sdf_opFuzzyUnion(float f1, float f2, float k){
+    float h = clamp( 0.5 + 0.5*(f2-f1)/k, 0.0, 1.0 );
+    return mix( f2, f1, h ) - k*h*(1.0-h);
+}
+float sdf_opFuzzyIntersect(float f1, float f2, float k){
+    float h = clamp( 0.5 - 0.5*(f2-f1)/k, 0.0, 1.0 );
+    return mix( f2, f1, h ) + k*h*(1.0-h);
+}
+float sdf_opFuzzySubtract(float f1, float f2, float k) { 
+    float h = clamp( 0.5 - 0.5*(f2+f1)/k, 0.0, 1.0 );
+    return mix( f2, -f1, h ) + k*h*(1.0-h);
+}
 float sdf_scene(vec3 p){//sdf for the scene
     vec3 obj_p = (viewToObjectMatrix * vec4(p, 1.)).xyz;
-	return min(sdf_tunnel(obj_p), min(sdf_ribbon(obj_p), sdf_infinite_cubes(obj_p)));
+    float fuzziness = 0.5;
+    float rtn = sdf_opFuzzyUnion(sdf_tunnel(obj_p), sdf_infinite_cubes(obj_p), fuzziness);
+	return sdf_opUnion(rtn, sdf_ribbon(obj_p));
 }
 float trace(vec3 origin, vec3 direction){
     float steplen = 0., dist;

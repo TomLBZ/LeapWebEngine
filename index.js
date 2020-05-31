@@ -3,7 +3,7 @@ import { Scene } from './lib/scene.js';
 import { WebGLRenderer } from './lib/renderer.js';
 import { readShaderSourcesAsync, Material, RENDER_TYPE } from './lib/material.js';
 import { Camera } from './lib/camera.js';
-import { Game } from './Game.js';
+import { Game } from './lib/Game.js';
 import { DebugConsole } from './lib/debug.js';
 import { Vec3, Mat3 } from './lib/matrix.js';
 //import { IMAGE_SETTINGS, StereoProcessor} from './lib/images.js';
@@ -15,7 +15,7 @@ import { Player } from './lib/player.js';
     let debugRoot = document.getElementById("console-root");
     let debugConsole = new DebugConsole(debugRoot);
     let canvas = document.querySelector("#leapSpace");
-    let renderer = new WebGLRenderer(canvas, 600, 400);
+    let renderer = new WebGLRenderer(canvas, 720, 480);
     let scene = new Scene();
     let world = new GSDFWorld(
                     //[27, 113, 57],

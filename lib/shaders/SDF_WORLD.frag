@@ -1,15 +1,16 @@
 #extension GL_EXT_frag_depth : enable
-#define MAX_STEPS                           96
-#define REFLECTED_MAX_STEPS                 48
-#define MIN_DIST                            1e-3
-#define REFLECTED_MIN_DIST                  2e-3
-#define MAX_STEPLEN                         30.
-#define STEPLEN_SCALEDOWN_FACTOR            .75
-#define SHADOW_MAX_ITERATIONS               24
-#define SHADOW_ENLIGHTEN                    .25
-#define NORMAL_SAMPLING_NUDGE               .0015
-#define SCENE_TRANSITION_TIME               1.
-#define SCENE_WELCOME_TIME                  3.
+#define MAX_STEPS                       96
+#define REFLECTED_MAX_STEPS             48
+#define MIN_DIST                        1e-3
+#define REFLECTED_MIN_DIST              2e-3
+#define MAX_STEPLEN                     30.
+#define STEPLEN_SCALEDOWN_FACTOR        .75
+#define SHADOW_MAX_ITERATIONS           24
+#define SHADOW_ENLIGHTEN                .25
+#define NORMAL_SAMPLING_NUDGE           .0015
+#define SCENE_OFFSET_TIME               1.
+#define SCENE_FADE_TIME                 1.
+#define SCENE_LOAD_TIME                 3. //at least >2 times of SCENE_FADE_TIME
 precision mediump float;
 uniform mat4 objectToWorldMatrix;
 uniform mat4 worldToViewMatrix;
@@ -17,7 +18,7 @@ uniform mat4 projectionMatrix;
 uniform vec4 diffuseColor;
 uniform vec2 screenSize;
 uniform float time;
-uniform vec3 rbinit;
+uniform vec3 rgbinit;
 //--------------------experimenting voxels
 vec3 pseudoRnd3(vec3 p){
     float n = sin(dot(floor(p), vec3(27, 113, 57)));//vec3(27, 113, 57)
@@ -413,21 +414,29 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
     sceneColor *= shadow;// Multiply the shadow from the first pass by the final scene color.
 	fragColor = vec4(sqrt(clamp(sceneColor, 0., 1.)), 1);// Clamping the scene color
 }
-void LoadProcedure(out vec4 fragColor, in vec2 fragCoord, vec3 rbfade, float tcrit, float tfade){
-    vec4 fc;
-    vec4 outputc = vec4((rbfade+.5)/256.,1.);
-    if (time < tcrit){
-        mainVoxelImage(fc, fragCoord);
-        if(time < tfade){outputc += time/tfade*(fc - outputc);}
-        else if(time > tcrit - tfade){outputc=fc+(time+tfade-tcrit)/tfade*(outputc-fc);}
-        else outputc = fc;
+void LoadProcedure(out vec4 fragColor, in vec2 fragCoord, float toffset, float tload, float tfade){
+    vec4 fc;    // |--offset-->|--load(fade--persist--fade)-->|--main(fade--mainImage)
+    vec4 outputc = vec4((rgbinit+.5)/256.,1.);
+    if (time < toffset + tload){
+        if(time > toffset){
+            mainVoxelImage(fc, fragCoord);
+            if(time < toffset + tfade){
+                outputc += (time - toffset) / tfade * (fc - outputc);
+            }
+            else if(time > toffset + tload - tfade){
+                outputc = fc + (time-toffset - tload + tfade) / tfade*(outputc - fc);
+            }
+            else outputc = fc;
+        }
     }else{
         mainImage(fc, fragCoord);
-        if(time < tcrit + tfade){outputc += (time-tcrit)/tfade*(fc - outputc);}
+        if(time < toffset + tload + tfade){
+            outputc += (time - toffset - tload) / tfade * (fc - outputc);
+        }
         else outputc = fc;
     }
     fragColor = outputc;
 }
 void main(){
-    LoadProcedure(gl_FragColor, gl_FragCoord.xy, rbinit, SCENE_WELCOME_TIME, SCENE_TRANSITION_TIME);
+    LoadProcedure(gl_FragColor, gl_FragCoord.xy, SCENE_OFFSET_TIME, SCENE_LOAD_TIME, SCENE_FADE_TIME);
 }

@@ -19,7 +19,7 @@ import { Player } from './lib/player.js';
     let scene = new Scene();
     let world = new GSDFWorld(
                     //[27, 113, 57],
-                    [10,20,30],
+                    [10,50,100],
                     "world",
                     new Material(RENDER_TYPE.SDF_WORLD, [0.5,0.5,1.,0.7]),
                     [0,0,0],

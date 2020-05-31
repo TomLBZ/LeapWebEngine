@@ -39,7 +39,7 @@ import { Player } from './lib/player.js';
     debugConsole.addLabel("scene object#", () => scene.objectKeys());
     var camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
     camera.setLookDirection([0, 0, 0], [0, 0, 1], [0, 1, 0]);
-    var defaultpos = camera.pos;
+    var defaultpos = new Vec3(camera.pos);
     var totaltime = 0.;
     debugConsole.addLabel("camera pos", () =>  camera.pos);
     debugConsole.addLabel("camera direction", () =>  camera.direction);
@@ -73,7 +73,7 @@ import { Player } from './lib/player.js';
         let p = false;
         if (player.KeyInput.Start) { return true; }
         if (player.KeyInput.Pause) { return false; }
-        if (player.KeyInput.Control) { camera.pos = defaultpos; }
+        if (player.KeyInput.Control) { camera.pos = defaultpos.ToArray(); }
         if (player.KeyInput.Left) { player.Velocity.X -= player.Accel; p = true; }
         if (player.KeyInput.Right) { player.Velocity.X += player.Accel; p = true; }
         if (player.KeyInput.Up) { player.Velocity.Z += player.Accel; p = true; }

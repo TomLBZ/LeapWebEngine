@@ -72,7 +72,7 @@ function update(timestamp){...}
 game.setUpdate(update);
 //create and add draw function
 function draw(){...}
-game.setUpdate(draw);
+game.setDraw(draw);
 //create and add begin and end function (optional)
 function begin(timestamp, framedelta){...}
 function end(fps, panic){...}

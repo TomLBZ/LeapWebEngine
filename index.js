@@ -73,7 +73,7 @@ import { Player } from './lib/player.js';
         let p = false;
         if (player.KeyInput.Start) { return true; }
         if (player.KeyInput.Pause) { return false; }
-        if (player.KeyInput.Control) { camera.pos[0] = defaultpos; }
+        if (player.KeyInput.Control) { camera.pos = defaultpos; }
         if (player.KeyInput.Left) { player.Velocity.X -= player.Accel; p = true; }
         if (player.KeyInput.Right) { player.Velocity.X += player.Accel; p = true; }
         if (player.KeyInput.Up) { player.Velocity.Z += player.Accel; p = true; }

@@ -87,7 +87,7 @@ float sdf_opFuzzySubtract(float f1, float f2, float k) {
 float sdf_scene(vec3 p){//sdf for the scene
     vec3 obj_p = (viewToObjectMatrix * vec4(p, 1.)).xyz;
     float fuzziness = 0.5;
-    float rtn = sdf_opFuzzyUnion(sdf_tunnel(obj_p), sdf_infinite_cubes(obj_p), fuzziness);
+    float rtn = sdf_opFuzzyUnion(sdf_tunnel(obj_p), sdf_infinite_cubes(obj_p),fuzziness);
 	return sdf_opUnion(rtn, sdf_ribbon(obj_p));
 }
 float trace(vec3 origin, vec3 direction){

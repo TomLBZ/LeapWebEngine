@@ -1,6 +1,6 @@
 #extension GL_EXT_frag_depth : enable
-#define MAX_STEPS                       96
-#define REFLECTED_MAX_STEPS             48
+#define MAX_STEPS                       128
+#define REFLECTED_MAX_STEPS             64
 #define MIN_DIST                        1e-3
 #define REFLECTED_MIN_DIST              2e-3
 #define MAX_STEPLEN                     30.
@@ -11,6 +11,7 @@
 #define SCENE_OFFSET_TIME               1.
 #define SCENE_FADE_TIME                 1.
 #define SCENE_LOAD_TIME                 3. //at least >2 times of SCENE_FADE_TIME
+#define MAX_PRIMITIVE_PARAM             5
 precision mediump float;
 uniform mat4 objectToWorldMatrix;
 uniform mat4 worldToViewMatrix;
@@ -19,7 +20,11 @@ uniform vec4 diffuseColor;
 uniform vec2 screenSize;
 uniform float time;
 uniform vec3 rgbinit;
-//--------------------experimenting voxels
+//----------------general purpose functions------------
+float dot2( in vec2 v ) { return dot(v,v); }
+float dot2( in vec3 v ) { return dot(v,v); }
+float ndot( in vec2 a, in vec2 b ) { return a.x*b.x - a.y*b.y; }
+float max3compv4(in vec4 v){return max(max(v.x,v.y), max(v.z,v.w));}
 vec3 pseudoRnd3(vec3 p){
     float n = sin(dot(floor(p), vec3(27, 113, 57)));//vec3(27, 113, 57)
     return fract(vec3(2097152, 262144, 32768)*n)*.16 - .08;//pseudo rnd
@@ -33,7 +38,425 @@ float noise(in vec3 x){
 	vec2 rg = pseudoRnd3(vec3(uv + 0.5, f.z+rnd.z)).yx;
 	return mix(rg.x, rg.y, f.z);
 }
-vec4 texcube(in vec3 p, in vec3 n){
+mat4 mat4Inverse(mat4 m) {
+  float
+      a00 = m[0][0], a01 = m[0][1], a02 = m[0][2], a03 = m[0][3],
+      a10 = m[1][0], a11 = m[1][1], a12 = m[1][2], a13 = m[1][3],
+      a20 = m[2][0], a21 = m[2][1], a22 = m[2][2], a23 = m[2][3],
+      a30 = m[3][0], a31 = m[3][1], a32 = m[3][2], a33 = m[3][3],
+      b00 = a00 * a11 - a01 * a10,
+      b01 = a00 * a12 - a02 * a10,
+      b02 = a00 * a13 - a03 * a10,
+      b03 = a01 * a12 - a02 * a11,
+      b04 = a01 * a13 - a03 * a11,
+      b05 = a02 * a13 - a03 * a12,
+      b06 = a20 * a31 - a21 * a30,
+      b07 = a20 * a32 - a22 * a30,
+      b08 = a20 * a33 - a23 * a30,
+      b09 = a21 * a32 - a22 * a31,
+      b10 = a21 * a33 - a23 * a31,
+      b11 = a22 * a33 - a23 * a32,
+      det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  return mat4(
+      a11 * b11 - a12 * b10 + a13 * b09,
+      a02 * b10 - a01 * b11 - a03 * b09,
+      a31 * b05 - a32 * b04 + a33 * b03,
+      a22 * b04 - a21 * b05 - a23 * b03,
+      a12 * b08 - a10 * b11 - a13 * b07,
+      a00 * b11 - a02 * b08 + a03 * b07,
+      a32 * b02 - a30 * b05 - a33 * b01,
+      a20 * b05 - a22 * b02 + a23 * b01,
+      a10 * b10 - a11 * b08 + a13 * b06,
+      a01 * b08 - a00 * b10 - a03 * b06,
+      a30 * b04 - a31 * b02 + a33 * b00,
+      a21 * b02 - a20 * b04 - a23 * b00,
+      a11 * b07 - a10 * b09 - a12 * b06,
+      a00 * b09 - a01 * b07 + a02 * b06,
+      a31 * b01 - a30 * b03 - a32 * b00,
+      a20 * b03 - a21 * b01 + a22 * b00) / det;
+}
+vec3 screenToVec3(vec2 uniformPos){
+    return vec3(uniformPos.x / projectionMatrix[0][0], 
+                uniformPos.y / projectionMatrix[1][1], -1.);
+}
+float distanceToZBufferDepth(float distance) {
+    float A = projectionMatrix[2].z;
+    float B = projectionMatrix[3].z;
+    return 0.5*(-A*distance + B) / distance + 0.5;
+}
+//----------------------sdf primitives-------------------------
+float sdfSphere(float s,vec3 p){return length(p)-s;}
+float sdfBox(vec3 p, vec3 b){
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+float sdfRoundBox(float r, vec3 p, vec3 b){
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0) - r;
+}
+float sdfTorus(vec2 t, vec3 p){
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+float sdfCappedTorus(in float rb, in float ra, in vec2 sc, in vec3 p){
+  p.x = abs(p.x);
+  float k = (sc.y*p.x>sc.x*p.y) ? dot(p.xy,sc) : length(p.xy);
+  return sqrt( dot(p,p) + ra*ra - 2.0*ra*k ) - rb;
+}
+float sdfLink(float le, float r1, float r2, vec3 p){
+  vec3 q = vec3( p.x, max(abs(p.y)-le,0.0), p.z );
+  return length(vec2(length(q.xy)-r1,q.z)) - r2;
+}
+float sdfInfiniteCylinder(vec3 p, vec3 c){return length(p.xz-c.xy)-c.z;}
+float sdfCone(float angle, float h, in vec3 p){
+  vec2 q = h*vec2(tan(angle),-1.0);
+  vec2 w = vec2( length(p.xz), p.y );
+  vec2 a = w - q*clamp( dot(w,q)/dot(q,q), 0.0, 1.0 );
+  vec2 b = w - q*vec2( clamp( w.x/q.x, 0.0, 1.0 ), 1.0 );
+  float k = sign( q.y );
+  float d = min(dot( a, a ),dot(b, b));
+  float s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
+  return sqrt(d)*sign(s);
+}
+float sdfApproxCone(float angle, float h, vec3 p){
+  float q = length(p.xz);
+  return max(dot(vec2(sin(angle),cos(angle)),vec2(q,p.y)),-h-p.y);
+}
+float sdfInfiniteCone(float angle, vec3 p){
+    vec2 c = vec2(sin(angle),cos(angle));
+    vec2 q = vec2( length(p.xz), -p.y );
+    float d = length(q-c*max(dot(q,c), 0.0));
+    return d * ((q.x*c.y-q.y*c.x<0.0)?-1.0:1.0);
+}
+float sdfPlane(float h, vec3 p, vec3 n){
+  return dot(p,normalize(n)) + h;
+}
+float sdfHexagonalPrism(vec2 h, vec3 p){
+  const vec3 k = vec3(-0.8660254, 0.5, 0.57735);
+  p = abs(p);
+  p.xy -= 2.0*min(dot(k.xy, p.xy), 0.0)*k.xy;
+  vec2 d = vec2(
+       length(p.xy-vec2(clamp(p.x,-k.z*h.x,k.z*h.x), h.x))*sign(p.y-h.x),
+       p.z-h.y );
+  return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
+float sdfApproxTriangularPrism(vec2 h, vec3 p){
+  vec3 q = abs(p);
+  return max(q.z-h.y,max(q.x*0.866025+p.y*0.5,-p.y)-h.x*0.5);
+}
+float sdfHorizontalCapsuleLine(float r, vec3 p, vec3 a, vec3 b){
+  vec3 pa = p - a, ba = b - a;
+  float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
+  return length( pa - ba*h ) - r;
+}
+float sdfVerticalCapsuleLine(float r, float h, vec3 p){
+  p.y -= clamp( p.y, 0.0, h );
+  return length( p ) - r;
+}
+float sdfCappedCylinder(float r, float h, vec3 p){
+  vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(h,r);
+  return min(max(d.x,d.y),0.0) + length(max(d,0.0));
+}
+float sdfCapped2PtCylinder(float r, vec3 p, vec3 a, vec3 b){
+  vec3  ba = b - a;
+  vec3  pa = p - a;
+  float baba = dot(ba,ba);
+  float paba = dot(pa,ba);
+  float x = length(pa*baba-ba*paba) - r*baba;
+  float y = abs(paba-baba*0.5)-baba*0.5;
+  float x2 = x*x;
+  float y2 = y*y*baba;
+  float d = (max(x,y)<0.0)?-min(x2,y2):(((x>0.0)?x2:0.0)+((y>0.0)?y2:0.0));
+  return sign(d)*sqrt(abs(d))/baba;
+}
+float sdfRoundedCylinder(float ra, float rb, float h, vec3 p){
+  vec2 d = vec2( length(p.xz)-2.0*ra+rb, abs(p.y) - h );
+  return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rb;
+}
+float sdfCappedCone(float h, float r1, float r2, vec3 p){
+  vec2 q = vec2( length(p.xz), p.y );
+  vec2 k1 = vec2(r2,h);
+  vec2 k2 = vec2(r2-r1,2.0*h);
+  vec2 ca = vec2(q.x-min(q.x,(q.y<0.0)?r1:r2), abs(q.y)-h);
+  vec2 cb = q - k1 + k2*clamp( dot(k1-q,k2)/dot2(k2), 0.0, 1.0 );
+  float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
+  return s*sqrt( min(dot2(ca),dot2(cb)) );
+}
+float sdfCapped2PtCone(float ra, float rb, vec3 p, vec3 a, vec3 b){
+    float rba  = rb-ra;
+    float baba = dot(b-a,b-a);
+    float papa = dot(p-a,p-a);
+    float paba = dot(p-a,b-a)/baba;
+    float x = sqrt( papa - paba*paba*baba );
+    float cax = max(0.0,x-((paba<0.5)?ra:rb));
+    float cay = abs(paba-0.5)-0.5;
+    float k = rba*rba + baba;
+    float f = clamp( (rba*(x-ra)+paba*baba)/k, 0.0, 1.0 );
+    float cbx = x-ra - f*rba;
+    float cby = paba - f;
+    float s = (cbx < 0.0 && cay < 0.0) ? -1.0 : 1.0;
+    return s*sqrt( min(cax*cax + cay*cay*baba,
+                       cbx*cbx + cby*cby*baba) );
+}
+float sdfSolidAngle(float angle, float ra, vec3 p){
+  vec2 c = vec2(sin(angle),cos(angle));
+  vec2 q = vec2( length(p.xz), p.y );
+  float l = length(q) - ra;
+  float m = length(q - c*clamp(dot(q,c),0.0,ra) );
+  return max(l,m*sign(c.y*q.x-c.x*q.y));
+}
+float sdfRoundCone(float r1, float r2, float h, vec3 p){
+  vec2 q = vec2( length(p.xz), p.y );  
+  float b = (r1-r2)/h;
+  float a = sqrt(1.0-b*b);
+  float k = dot(q,vec2(-b,a));
+  if( k < 0.0 ) return length(q) - r1;
+  if( k > a*h ) return length(q-vec2(0.0,h)) - r2;  
+  return dot(q, vec2(a,b) ) - r1;
+}
+float sdfRound2PtCone(float r1, float r2, vec3 p, vec3 a, vec3 b){
+    vec3  ba = b - a;
+    float l2 = dot(ba,ba);
+    float rr = r1 - r2;
+    float a2 = l2 - rr*rr;
+    float il2 = 1.0/l2;
+    vec3 pa = p - a;
+    float y = dot(pa,ba);
+    float z = y - l2;
+    float x2 = dot2( pa*l2 - ba*y );
+    float y2 = y*y*l2;
+    float z2 = z*z*l2;
+    float k = sign(rr)*rr*rr*x2;
+    if( sign(z)*a2*z2 > k ) return  sqrt(x2 + z2)        *il2 - r2;
+    if( sign(y)*a2*y2 < k ) return  sqrt(x2 + y2)        *il2 - r1;
+                            return (sqrt(x2*a2*il2)+y*rr)*il2 - r1;
+}
+float sdfEllipsoid(vec3 p, vec3 r){
+  float k0 = length(p/r);
+  float k1 = length(p/(r*r));
+  return k0*(k0-1.0)/k1;
+}
+float sdfRhombus(float la, float lb, float h, float ra, vec3 p){
+  p = abs(p);
+  vec2 b = vec2(la,lb);
+  float f = clamp( (ndot(b,b-2.0*p.xz))/dot(b,b), -1.0, 1.0 );
+  vec2 q = vec2(length(p.xz-0.5*b*vec2(1.0-f,1.0+f))*sign(p.x*b.y+p.z*b.x-b.x*b.y)-ra, p.y-h);
+  return min(max(q.x,q.y),0.0) + length(max(q,0.0));
+}
+float sdfOctahedron(float s, vec3 p){
+  p = abs(p);
+  float m = p.x+p.y+p.z-s;
+  vec3 q;
+       if( 3.0*p.x < m ) q = p.xyz;
+  else if( 3.0*p.y < m ) q = p.yzx;
+  else if( 3.0*p.z < m ) q = p.zxy;
+  else return m*0.57735027;
+    
+  float k = clamp(0.5*(q.z-q.y+s),0.0,s); 
+  return length(vec3(q.x,q.y-s+k,q.z-k)); 
+}
+float sdfApproxOctahedron(float s, vec3 p){
+  p = abs(p);
+  return (p.x+p.y+p.z-s)*0.57735027;
+}
+float sdfPyramid(float h, vec3 p){
+  float m2 = h*h + 0.25;
+  p.xz = abs(p.xz);
+  p.xz = (p.z>p.x) ? p.zx : p.xz;
+  p.xz -= 0.5;
+  vec3 q = vec3( p.z, h*p.y - 0.5*p.x, h*p.x + 0.5*p.y);
+  float s = max(-q.x,0.0);
+  float t = clamp( (q.y-0.5*p.z)/(m2+0.25), 0.0, 1.0 );
+  float a = m2*(q.x+s)*(q.x+s) + q.y*q.y;
+  float b = m2*(q.x+0.5*t)*(q.x+0.5*t) + (q.y-m2*t)*(q.y-m2*t);
+  float d2 = min(q.y,-q.x*m2-q.y*0.5) > 0.0 ? 0.0 : min(a,b);
+  return sqrt( (d2+q.z*q.z)/m2 ) * sign(max(q.z,-p.y));
+}
+float udfTriangle( vec3 p, vec3 a, vec3 b, vec3 c ){
+  vec3 ba = b - a; vec3 pa = p - a;
+  vec3 cb = c - b; vec3 pb = p - b;
+  vec3 ac = a - c; vec3 pc = p - c;
+  vec3 nor = cross( ba, ac );
+  return sqrt(
+    (sign(dot(cross(ba,nor),pa)) +
+     sign(dot(cross(cb,nor),pb)) +
+     sign(dot(cross(ac,nor),pc))<2.0)
+     ?
+     min( min(
+     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
+     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb) ),
+     dot2(ac*clamp(dot(ac,pc)/dot2(ac),0.0,1.0)-pc) )
+     :
+     dot(nor,pa)*dot(nor,pa)/dot2(nor) );
+}
+float udfQuadrilateral( vec3 p, vec3 a, vec3 b, vec3 c, vec3 d ){
+  vec3 ba = b - a; vec3 pa = p - a;
+  vec3 cb = c - b; vec3 pb = p - b;
+  vec3 dc = d - c; vec3 pc = p - c;
+  vec3 ad = a - d; vec3 pd = p - d;
+  vec3 nor = cross( ba, ad );
+  return sqrt(
+    (sign(dot(cross(ba,nor),pa)) +
+     sign(dot(cross(cb,nor),pb)) +
+     sign(dot(cross(dc,nor),pc)) +
+     sign(dot(cross(ad,nor),pd))<3.0)
+     ?
+     min( min( min(
+     dot2(ba*clamp(dot(ba,pa)/dot2(ba),0.0,1.0)-pa),
+     dot2(cb*clamp(dot(cb,pb)/dot2(cb),0.0,1.0)-pb) ),
+     dot2(dc*clamp(dot(dc,pc)/dot2(dc),0.0,1.0)-pc) ),
+     dot2(ad*clamp(dot(ad,pd)/dot2(ad),0.0,1.0)-pd) )
+     :
+     dot(nor,pa)*dot(nor,pa)/dot2(nor) );
+}
+//--------------------2d sdfs-------------------
+//to be added
+//--------------------sdf operations-------------
+float sdf_opUnion(float f1, float f2){return min(f1, f2);}
+float sdf_opIntersect(float f1, float f2){return max(f1, f2);}
+float sdf_opSubtract(float f1, float f2){return max(-f1, f2);}
+float sdf_opFuzzyUnion(float f1, float f2, float k){
+    float h = clamp(0.5 + 0.5*(f2-f1)/k, 0.0, 1.0);
+    return mix(f2, f1, h) - k*h*(1.0-h);
+}
+float sdf_opFuzzyIntersect(float f1, float f2, float k){
+    float h = clamp(0.5 - 0.5*(f2-f1)/k, 0.0, 1.0);
+    return mix(f2, f1, h) + k*h*(1.0-h);
+}
+float sdf_opFuzzySubtract(float f1, float f2, float k) { 
+    float h = clamp(0.5 - 0.5*(f2+f1)/k, 0.0, 1.0);
+    return mix(f2, -f1, h) + k*h*(1.0-h);
+}
+vec4 sdf_opElongate_(in vec3 p, in vec3 h){
+    vec3 q = abs(p)-h;
+    return vec4( sign(p) * max(q,0.0), min(max(q.x,max(q.y,q.z)),0.0) );
+}
+float sdf_opRounding(float d, float rad){return d - rad;}
+float sdf_opOnion( in float d, in float thickness ){return abs(d)-thickness;}
+float sdf_op2DExtrusion( in vec3 p, in float d, in float h ){
+    vec2 w = vec2( d, abs(p.z) - h );
+  	return min(max(w.x,w.y),0.0) + length(max(w,0.0));
+}
+vec2 sdf_op2DRevolution_( in vec3 p, float w ){return vec2( length(p.xz) - w, p.y );}
+float sdf_opMetricLength2( vec3 p ) { p=p*p; return sqrt( p.x+p.y+p.z); }
+float sdf_opMetricLength6( vec3 p ) { p=p*p*p; p=p*p; return pow(p.x+p.y+p.z,1.0/6.0); }
+float sdf_opMetricLength8( vec3 p ) { p=p*p; p=p*p; p=p*p; return pow(p.x+p.y+p.z,1.0/8.0); }
+vec3 sdf_opTranslateAndRotate_( in vec3 p, in mat4 t){return (mat4Inverse(t)*vec4(p,1.)).xyz;}
+vec3 sdf_opScale_( in vec3 p, in float s_multiply_back_to_dist_after_scaling){return p / s_multiply_back_to_dist_after_scaling;}
+vec3 sdf_opSymX_( in vec3 p){
+    p.x = abs(p.x);
+    return p;
+}
+vec3 sdf_opSymXZ_( in vec3 p){
+    p.xz = abs(p.xz);
+    return p;
+}
+vec3 sdf_opInfiniteRepetition_(in vec3 p, in vec3 c){return mod(p+0.5*c,c)-0.5*c;}
+vec3 sdf_opFiniteRepetition_(in vec3 p, in float c, in vec3 l){return p-c*clamp(floor(p/c+.5),-l,l);}
+float sdf_opDisplaceSDF(in float prim_d_of_vec3p, in float displ_d){return prim_d_of_vec3p + displ_d;}
+vec3 sdf_opTwistSDF_(in vec3 p, float k){
+    float c = cos(k*p.y);//k may be 10.0 or anything
+    float s = sin(k*p.y);
+    mat2  m = mat2(c,-s,s,c);
+    return vec3(m*p.xz,p.y);
+}
+vec3 sdf_opBendSDF_(in vec3 p, float k){
+    float c = cos(k*p.x);//k may be 10.0 or anything
+    float s = sin(k*p.x);
+    mat2  m = mat2(c,-s,s,c);
+    return vec3(m*p.xy,p.z);
+}
+//---------------------complicated sdf scenes------------------------
+float sdfTunnel(vec3 p){return cos(p.x)+cos(p.y*1.5)+cos(p.z)+cos(p.y*20.)*.05;}
+float sdfRibbon(vec3 p){
+	return length(max(abs(p-vec3(cos(p.z*1.5)*.3,-.5+cos(p.z)*.2,.0))-vec3(.125,.02,time+3.),vec3(.0)));
+}
+float sdfInfiniteRoundedCubes(vec3 p){
+    vec3 rnd = pseudoRnd3(p);
+    p = fract(p + rnd) - .5;
+    p = abs(p); 
+    return max(p.x, max(p.y, p.z)) - 0.2 + dot(p, p)*0.5;
+}
+//--------------------primitive interface-----------------
+struct Primitive{//for future parameterization.
+    int NumFloatParams;
+    int NumVec2Params;
+    int NumVec3Params;
+    int Type;
+};
+Primitive Sphere =                  Primitive(1,0,1,0);
+Primitive Box =                     Primitive(0,0,2,1);
+Primitive RoundBox =                Primitive(1,0,2,2);
+Primitive Torus =                   Primitive(0,1,1,3);
+Primitive CappedTorus =             Primitive(2,1,1,4);
+Primitive Link =                    Primitive(3,0,1,5);
+Primitive InfiniteCylinder =        Primitive(0,0,2,6);
+Primitive Cone =                    Primitive(2,0,1,7);
+Primitive ApproxCone =              Primitive(2,0,1,8);
+Primitive InfiniteCone =            Primitive(1,0,1,9);
+Primitive Plane =                   Primitive(1,0,2,10);
+Primitive HexagonalPrism =          Primitive(0,1,1,11);
+Primitive ApproxTriangularPrism =   Primitive(0,1,1,12);
+Primitive HorizontalCapsuleLine =   Primitive(1,0,3,13);
+Primitive VerticalCapsuleLine =     Primitive(2,0,1,14);
+Primitive CappedCylinder =          Primitive(2,0,1,15);
+Primitive Capped2PtCylinder =       Primitive(1,0,3,16);
+Primitive RoundedCylinder =         Primitive(3,0,1,17);
+Primitive CappedCone =              Primitive(3,0,1,18);
+Primitive Capped2PtCone =           Primitive(2,0,3,19);
+Primitive SolidAngle =              Primitive(2,0,1,20);
+Primitive RoundCone =               Primitive(3,0,1,21);
+Primitive Round2PtCone =            Primitive(2,0,3,22);
+Primitive Ellipsoid =               Primitive(0,0,2,23);
+Primitive Rhombus =                 Primitive(4,0,1,24);
+Primitive Octahedron =              Primitive(1,0,1,25);
+Primitive ApproxOctahedron =        Primitive(1,0,1,26);
+Primitive Pyramid =                 Primitive(1,0,1,27);
+Primitive Triangle =                Primitive(0,0,4,28);
+Primitive Quadrilateral =           Primitive(0,0,5,29);
+float primitive(Primitive prim, float[MAX_PRIMITIVE_PARAM] fparams,
+            vec2[MAX_PRIMITIVE_PARAM] v2params, vec3[MAX_PRIMITIVE_PARAM] v3params){
+    float f[MAX_PRIMITIVE_PARAM];
+    vec2 v2[MAX_PRIMITIVE_PARAM];
+    vec3 v3[MAX_PRIMITIVE_PARAM];
+    for(int i = 0; i < MAX_PRIMITIVE_PARAM; i++){
+        f[i]=fparams[i];
+        v2[i]=v2params[i];
+        v3[i]=v3params[i];
+    }
+    if     (prim.Type == 0) {return sdfSphere(f[0],v3[0]);}
+    else if(prim.Type == 1) {return sdfBox(v3[0],v3[1]);}
+    else if(prim.Type == 2) {return sdfRoundBox(f[0],v3[0],v3[1]);}
+    else if(prim.Type == 3) {return sdfTorus(v2[0],v3[0]);}
+    else if(prim.Type == 4) {return sdfCappedTorus(f[0],f[1],v2[0],v3[0]);}
+    else if(prim.Type == 5) {return sdfLink(f[0],f[1],f[2],v3[0]);}
+    else if(prim.Type == 6) {return sdfInfiniteCylinder(v3[0],v3[0]);}
+    else if(prim.Type == 7) {return sdfCone(f[0],f[1],v3[0]);}
+    else if(prim.Type == 8) {return sdfApproxCone(f[0],f[1],v3[0]);}
+    else if(prim.Type == 9) {return sdfInfiniteCone(f[0],v3[0]);}
+    else if(prim.Type == 10){return sdfPlane(f[0],v3[0],v3[1]);}
+    else if(prim.Type == 11){return sdfHexagonalPrism(v2[0],v3[0]);}
+    else if(prim.Type == 12){return sdfApproxTriangularPrism(v2[0],v3[0]);}
+    else if(prim.Type == 13){return sdfHorizontalCapsuleLine(f[0],v3[0],v3[1],v3[2]);}
+    else if(prim.Type == 14){return sdfVerticalCapsuleLine(f[0],f[1],v3[0]);}
+    else if(prim.Type == 15){return sdfCappedCylinder(f[0],f[1],v3[0]);}
+    else if(prim.Type == 16){return sdfCapped2PtCylinder(f[0],v3[0],v3[1],v3[2]);}
+    else if(prim.Type == 17){return sdfRoundedCylinder(f[0],f[1],f[2],v3[0]);}
+    else if(prim.Type == 18){return sdfCappedCone(f[0],f[1],f[2],v3[0]);}
+    else if(prim.Type == 19){return sdfCapped2PtCone(f[0],f[1],v3[0],v3[1],v3[2]);}
+    else if(prim.Type == 20){return sdfSolidAngle(f[0],f[1],v3[0]);}
+    else if(prim.Type == 21){return sdfRoundCone(f[0],f[1],f[2],v3[0]);}
+    else if(prim.Type == 22){return sdfRound2PtCone(f[0],f[1],v3[0],v3[1],v3[2]);}
+    else if(prim.Type == 23){return sdfEllipsoid(v3[0],v3[1]);}
+    else if(prim.Type == 24){return sdfRhombus(f[0],f[1],f[2],f[3],v3[0]);}
+    else if(prim.Type == 25){return sdfOctahedron(f[0],v3[0]);}
+    else if(prim.Type == 26){return sdfApproxOctahedron(f[0],v3[0]);}
+    else if(prim.Type == 27){return sdfPyramid(f[0],v3[0]);}
+    else if(prim.Type == 28){return udfTriangle(v3[0],v3[1],v3[2],v3[3]);}
+    else if(prim.Type == 29){return udfQuadrilateral(v3[0],v3[1],v3[2],v3[3],v3[4]);}
+}
+//--------------------experimenting voxels---------------
+vec4 getVoxelColor(in vec3 p, in vec3 n){
     vec3 rp = pseudoRnd3(p);
     vec3 rn = pseudoRnd3(n);
 	return vec4(rp.x*rn.y, rp.y*rn.z, rp.z*rn.x, rp.z*rn.z);
@@ -68,7 +491,7 @@ float castRay(in vec3 ro, in vec3 rd, out vec3 oVos, out vec3 oDir){
 	vec3 dis = (pos-ro + 0.5 + rs*0.5) * ri;
 	float res = -1.0;
 	vec3 mm = vec3(0.0);
-	for(int i=0; i<128; i++) 
+	for(int i=0; i<MAX_STEPS; i++) 
 	{
 		if(sdf_voxelmap(pos)>0.5) { res=1.0; break; }
 		mm = step(dis.xyz, dis.yzx) * step(dis.xyz, dis.zxy);
@@ -95,9 +518,6 @@ mat3 setCamera(in vec3 ro, in vec3 ta, float cr){
 	vec3 cu = normalize(cross(cw,cp));
 	vec3 cv = normalize(cross(cu,cw));
     return mat3(cu, cv, -cw);
-}
-float max3compv4(in vec4 v){
-    return max(max(v.x,v.y), max(v.z,v.w));
 }
 float isEdge(in vec2 uv, vec4 va, vec4 vb, vec4 vc, vec4 vd){
     vec2 st = 1.0 - uv;
@@ -162,7 +582,7 @@ vec3 renderVoxels(in vec3 ro, in vec3 rd){
         float vvv = (1.0-wir.x*wir.y)*(1.0-wir.x*wir.z)*(1.0-wir.y*wir.z);
         col = 2.0*pseudoRnd3(pos); 
         col += 0.8*vec3(0.1,0.3,0.4);
-        col *= 0.5 + 0.5*texcube(0.5*pos, nor).x;
+        col *= 0.5 + 0.5*getVoxelColor(0.5*pos, nor).x;
         col *= 1.0 - 0.75*(1.0-vvv)*www;
         // lighting
         float dif = clamp(dot(nor, lig), 0.0, 1.0);
@@ -231,78 +651,12 @@ void mainVoxelImage(out vec4 fragColor, in vec2 fragCoord){
 	fragColor = vec4(col, 1.0);
 }
 //---------------------working code
-mat4 inverse(mat4 m) {
-  float
-      a00 = m[0][0], a01 = m[0][1], a02 = m[0][2], a03 = m[0][3],
-      a10 = m[1][0], a11 = m[1][1], a12 = m[1][2], a13 = m[1][3],
-      a20 = m[2][0], a21 = m[2][1], a22 = m[2][2], a23 = m[2][3],
-      a30 = m[3][0], a31 = m[3][1], a32 = m[3][2], a33 = m[3][3],
-      b00 = a00 * a11 - a01 * a10,
-      b01 = a00 * a12 - a02 * a10,
-      b02 = a00 * a13 - a03 * a10,
-      b03 = a01 * a12 - a02 * a11,
-      b04 = a01 * a13 - a03 * a11,
-      b05 = a02 * a13 - a03 * a12,
-      b06 = a20 * a31 - a21 * a30,
-      b07 = a20 * a32 - a22 * a30,
-      b08 = a20 * a33 - a23 * a30,
-      b09 = a21 * a32 - a22 * a31,
-      b10 = a21 * a33 - a23 * a31,
-      b11 = a22 * a33 - a23 * a32,
-      det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-  return mat4(
-      a11 * b11 - a12 * b10 + a13 * b09,
-      a02 * b10 - a01 * b11 - a03 * b09,
-      a31 * b05 - a32 * b04 + a33 * b03,
-      a22 * b04 - a21 * b05 - a23 * b03,
-      a12 * b08 - a10 * b11 - a13 * b07,
-      a00 * b11 - a02 * b08 + a03 * b07,
-      a32 * b02 - a30 * b05 - a33 * b01,
-      a20 * b05 - a22 * b02 + a23 * b01,
-      a10 * b10 - a11 * b08 + a13 * b06,
-      a01 * b08 - a00 * b10 - a03 * b06,
-      a30 * b04 - a31 * b02 + a33 * b00,
-      a21 * b02 - a20 * b04 - a23 * b00,
-      a11 * b07 - a10 * b09 - a12 * b06,
-      a00 * b09 - a01 * b07 + a02 * b06,
-      a31 * b01 - a30 * b03 - a32 * b00,
-      a20 * b03 - a21 * b01 + a22 * b00) / det;
-}
 mat4 viewToObjectMatrix;
-float sdf_tunnel(vec3 p)
-{
-	return cos(p.x)+cos(p.y*1.5)+cos(p.z)+cos(p.y*20.)*.05;
-}
-float sdf_ribbon(vec3 p)
-{
-	return length(max(abs(p-vec3(cos(p.z*1.5)*.3,-.5+cos(p.z)*.2,.0))-vec3(.125,.02,time+3.),vec3(.0)));
-}
-float sdf_infinite_cubes(vec3 p){//sdf for the rounded box
-    vec3 rnd = pseudoRnd3(p);
-    p = fract(p + rnd) - .5;
-    p = abs(p); 
-    return max(p.x, max(p.y, p.z)) - 0.2 + dot(p, p)*0.5;
-}
-float sdf_opUnion(float f1, float f2){return min(f1, f2);}
-float sdf_opIntersect(float f1, float f2){return max(f1, f2);}
-float sdf_opSubtract(float f1, float f2){return max(-f1, f2);}
-float sdf_opFuzzyUnion(float f1, float f2, float k){
-    float h = clamp(0.5 + 0.5*(f2-f1)/k, 0.0, 1.0);
-    return mix(f2, f1, h) - k*h*(1.0-h);
-}
-float sdf_opFuzzyIntersect(float f1, float f2, float k){
-    float h = clamp(0.5 - 0.5*(f2-f1)/k, 0.0, 1.0);
-    return mix(f2, f1, h) + k*h*(1.0-h);
-}
-float sdf_opFuzzySubtract(float f1, float f2, float k) { 
-    float h = clamp(0.5 - 0.5*(f2+f1)/k, 0.0, 1.0);
-    return mix(f2, -f1, h) + k*h*(1.0-h);
-}
 float sdf_scene(vec3 p){//sdf for the scene
     vec3 obj_p = (viewToObjectMatrix * vec4(p, 1.)).xyz;
     float fuzziness = 0.5;
-    float rtn = sdf_opFuzzyUnion(sdf_tunnel(obj_p), sdf_infinite_cubes(obj_p),fuzziness);
-	return sdf_opUnion(rtn, sdf_ribbon(obj_p));
+    float rtn = sdf_opFuzzyUnion(sdfTunnel(obj_p), sdfInfiniteRoundedCubes(obj_p),fuzziness);
+	return sdf_opUnion(rtn, sdfRibbon(obj_p));
 }
 float trace(vec3 origin, vec3 direction){
     float steplen = 0., dist;
@@ -376,26 +730,17 @@ vec3 colorScene(in vec3 surfacePos, in vec3 rayDirection, in vec3 surfaceNormal,
     vec3 tunnel = colorTunnel(surfacePos, surfaceNormal, lightOrigin);
     vec3 ribbon = colorRibbon();
     vec3 obj_lo = (viewToObjectMatrix * vec4(lightOrigin, 1.)).xyz;
-    float dc = sdf_infinite_cubes(obj_lo);
-    float dt = sdf_tunnel(obj_lo);
-    float dr = sdf_ribbon(obj_lo);
+    float dc = sdfInfiniteRoundedCubes(obj_lo);
+    float dt = sdfTunnel(obj_lo);
+    float dr = sdfRibbon(obj_lo);
     float nearest = min(dr, min(dc, dt));
     float fogF = smoothstep(0., .95, t / MAX_STEPLEN);// Fog factor based on the distance from the camera.
     if(nearest == dt) return mix(tunnel, vec3(0), fogF);
     else if (nearest == dr) return mix(ribbon, vec3(0), fogF);
     else return mix(cubes, vec3(0), fogF);
 }
-vec3 screenToVec3(vec2 uniformPos){
-    return vec3(uniformPos.x / projectionMatrix[0][0], 
-                uniformPos.y / projectionMatrix[1][1], -1.);
-}
-float distanceToZBufferDepth(float distance) {
-    float A = projectionMatrix[2].z;
-    float B = projectionMatrix[3].z;
-    return 0.5*(-A*distance + B) / distance + 0.5;
-}
 void mainImage(out vec4 fragColor, in vec2 fragCoord){
-    viewToObjectMatrix = inverse(objectToWorldMatrix) * inverse(worldToViewMatrix);
+    viewToObjectMatrix = mat4Inverse(objectToWorldMatrix) * mat4Inverse(worldToViewMatrix);
     vec2 unitScreenPos = (fragCoord / screenSize - vec2(0.5, 0.5)) * 2.;
     vec3 raydir=normalize(screenToVec3(unitScreenPos));
     vec3 camO = vec3(0., 0., 0.);// Ray origin.

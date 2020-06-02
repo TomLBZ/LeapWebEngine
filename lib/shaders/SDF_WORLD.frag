@@ -25,6 +25,32 @@ float dot2( in vec2 v ) { return dot(v,v); }
 float dot2( in vec3 v ) { return dot(v,v); }
 float ndot( in vec2 a, in vec2 b ) { return a.x*b.x - a.y*b.y; }
 float max3compv4(in vec4 v){return max(max(v.x,v.y), max(v.z,v.w));}
+float hash( float n ) { return fract(sin(n)*753.5453123); }
+vec4 noise_with_derivatives( in vec3 x ){
+    vec3 p = floor(x);
+    vec3 w = fract(x);
+	vec3 u = w*w*(3.0-2.0*w);
+    vec3 du = 6.0*w*(1.0-w);
+    float n = p.x + p.y*157.0 + 113.0*p.z;
+    float a = hash(n+  0.0);
+    float b = hash(n+  1.0);
+    float c = hash(n+157.0);
+    float d = hash(n+158.0);
+    float e = hash(n+113.0);
+	float f = hash(n+114.0);
+    float g = hash(n+270.0);
+    float h = hash(n+271.0);
+    float k0 =   a;
+    float k1 =   b - a;
+    float k2 =   c - a;
+    float k3 =   e - a;
+    float k4 =   a - b - c + d;
+    float k5 =   a - c - e + g;
+    float k6 =   a - b - e + f;
+    float k7 = - a + b + c - d + e - f - g + h;
+    return vec4( k0 + k1*u.x + k2*u.y + k3*u.z + k4*u.x*u.y + k5*u.y*u.z + k6*u.z*u.x + k7*u.x*u.y*u.z, 
+                 du * (vec3(k1,k2,k3) + u.yzx*vec3(k4,k5,k6) + u.zxy*vec3(k6,k4,k5) + k7*u.yzx*u.zxy ));
+}
 vec3 pseudoRnd3(vec3 p){
     float n = sin(dot(floor(p), vec3(27, 113, 57)));//vec3(27, 113, 57)
     return fract(vec3(2097152, 262144, 32768)*n)*.16 - .08;//pseudo rnd
@@ -414,16 +440,8 @@ Primitive ApproxOctahedron =        Primitive(1,0,1,26);
 Primitive Pyramid =                 Primitive(1,0,1,27);
 Primitive Triangle =                Primitive(0,0,4,28);
 Primitive Quadrilateral =           Primitive(0,0,5,29);
-float primitive(Primitive prim, float[MAX_PRIMITIVE_PARAM] fparams,
-            vec2[MAX_PRIMITIVE_PARAM] v2params, vec3[MAX_PRIMITIVE_PARAM] v3params){
-    float f[MAX_PRIMITIVE_PARAM];
-    vec2 v2[MAX_PRIMITIVE_PARAM];
-    vec3 v3[MAX_PRIMITIVE_PARAM];
-    for(int i = 0; i < MAX_PRIMITIVE_PARAM; i++){
-        f[i]=fparams[i];
-        v2[i]=v2params[i];
-        v3[i]=v3params[i];
-    }
+float primitive(Primitive prim, float[MAX_PRIMITIVE_PARAM] f,
+            vec2[MAX_PRIMITIVE_PARAM] v2, vec3[MAX_PRIMITIVE_PARAM] v3){
     if     (prim.Type == 0) {return sdfSphere(f[0],v3[0]);}
     else if(prim.Type == 1) {return sdfBox(v3[0],v3[1]);}
     else if(prim.Type == 2) {return sdfRoundBox(f[0],v3[0],v3[1]);}
@@ -471,8 +489,8 @@ float mapTerrain(vec3 p){
 	itime = it + ft;
 	float spe = 1.4;
 	float f;
-    f  = 0.5000*noise(p*1.00 + vec3(0.0,1.0,0.0)*spe*time);
-    f += 0.2500*noise(p*2.02 + vec3(0.0,2.0,0.0)*spe*time);
+    f  = 0.5000*noise(p*1.00 + vec3(0.0,1.0,0.0)*spe*itime);
+    f += 0.2500*noise(p*2.02 + vec3(0.0,2.0,0.0)*spe*itime);
     f += 0.1250*noise(p*4.01);
 	return 25.0*f-10.0;
 }

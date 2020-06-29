@@ -1,9 +1,9 @@
 #extension GL_EXT_frag_depth : enable
-#define MAX_STEPS                       128
-#define REFLECTED_MAX_STEPS             64
+#define MAX_STEPS                       256
+#define REFLECTED_MAX_STEPS             128
 #define MIN_DIST                        1e-3
 #define REFLECTED_MIN_DIST              2e-3
-#define MAX_STEPLEN                     30.
+#define MAX_STEPLEN                     50.
 #define STEPLEN_SCALEDOWN_FACTOR        .75
 #define SHADOW_MAX_ITERATIONS           24
 #define SHADOW_ENLIGHTEN                .25

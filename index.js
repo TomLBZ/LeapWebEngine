@@ -13,9 +13,7 @@ import { Player } from './lib/player.js';
 (async function () {
     await readShaderSourcesAsync(); 
     let debugRoot = document.getElementById("console-root");
-    let debugConsole = new DebugConsole(debugRoot);
     let canvas = document.querySelector("#leapSpace");
-    let renderer = new WebGLRenderer(canvas, 720, 480);
     let scene = new Scene();
     let world = new GSDFWorld(
                     //[27, 113, 57],
@@ -25,27 +23,21 @@ import { Player } from './lib/player.js';
                     [0,0,0],
                     [0,0,0]
                 );
-    let pobj = new GSDFBox(
-                    [20, 40, 20],
-                    "bounding",
-                    new Material(RENDER_TYPE.SDF_BOX, [0.2,1.,0.5,0.3]),
-                    [0,0,0],
-                    [0,0,0]
-                );
     scene.addObject(world);
-    debugConsole.activate();
-    debugConsole.addLabel("canvas size", () => renderer.width.toString() + ", " + renderer.height.toString());
-    debugConsole.addLabel("renderer status", () => renderer.renderCount);
-    debugConsole.addLabel("scene object#", () => scene.objectKeys());
     var camera = new Camera(Math.PI * 0.5, 600 / 400, 1, 1000);
     camera.setLookDirection([0, 0, 0], [0, 0, 1], [0, 1, 0]);
     var defaultpos = new Vec3(camera.pos);
     var totaltime = 0.;
+    let mygame = new Game(canvas, window);
+    mygame.ECS_Initialize();
+    
+    debugConsole.activate();
+    debugConsole.addLabel("canvas size", () => renderer.width.toString() + ", " + renderer.height.toString());
+    debugConsole.addLabel("renderer status", () => renderer.renderCount);
+    debugConsole.addLabel("scene object#", () => scene.objectKeys());
     debugConsole.addLabel("camera pos", () =>  camera.pos);
     debugConsole.addLabel("camera direction", () =>  camera.direction);
     debugConsole.addLabel("camera up", () =>  camera.up);
-    let mygame = new Game();
-    var player = new Player(window, camera, pobj, canvas);
     debugConsole.addLabel("fps", () => mygame.Fps);
     debugConsole.addLabel("animationTimeField", () => renderer.animationTimeField);
     debugConsole.addLabel("PlayerVelocity", () => player.Velocity.ToArray());
@@ -53,6 +45,7 @@ import { Player } from './lib/player.js';
     function update(timestep){
         totaltime += timestep * 0.001;
         renderer.animationTimeField = totaltime;
+        mygame.myECS.Update(totaltime);
         let up3 = new Vec3(camera.up);
         let dir3 = new Vec3(camera.direction);
         let pos3 = new Vec3(camera.pos);

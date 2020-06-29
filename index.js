@@ -13,6 +13,7 @@ import { Player } from './lib/player.js';
 (async function () {
     await readShaderSourcesAsync(); 
     let debugRoot = document.getElementById("console-root");
+    let debugConsole = new DebugConsole(debugRoot);
     let canvas = document.querySelector("#leapSpace");
     let scene = new Scene();
     let world = new GSDFWorld(
@@ -30,54 +31,23 @@ import { Player } from './lib/player.js';
     var totaltime = 0.;
     let mygame = new Game(canvas, window);
     mygame.ECS_Initialize();
-    
-    debugConsole.activate();
-    debugConsole.addLabel("canvas size", () => renderer.width.toString() + ", " + renderer.height.toString());
-    debugConsole.addLabel("renderer status", () => renderer.renderCount);
-    debugConsole.addLabel("scene object#", () => scene.objectKeys());
-    debugConsole.addLabel("camera pos", () =>  camera.pos);
-    debugConsole.addLabel("camera direction", () =>  camera.direction);
-    debugConsole.addLabel("camera up", () =>  camera.up);
-    debugConsole.addLabel("fps", () => mygame.Fps);
-    debugConsole.addLabel("animationTimeField", () => renderer.animationTimeField);
-    debugConsole.addLabel("PlayerVelocity", () => player.Velocity.ToArray());
-    var lx = 0., ly = 0.;
+    let renderer = new WebGLRenderer(canvas, 720, 480);
+    if(mygame.DebugMode){
+        //let debugConsole = mygame.myECS.Systems[3];
+        debugConsole.activate();
+        debugConsole.addLabel("canvas size", () => renderer.width.toString() + ", " + renderer.height.toString());
+        debugConsole.addLabel("renderer status", () => renderer.renderCount);
+        debugConsole.addLabel("scene object#", () => scene.objectKeys());
+        debugConsole.addLabel("camera pos", () =>  camera.pos);
+        debugConsole.addLabel("camera direction", () =>  camera.direction);
+        debugConsole.addLabel("camera up", () =>  camera.up);
+        debugConsole.addLabel("fps", () => mygame.Fps);
+        debugConsole.addLabel("animationTimeField", () => renderer.animationTimeField);
+    }
     function update(timestep){
         totaltime += timestep * 0.001;
         renderer.animationTimeField = totaltime;
         mygame.myECS.Update(totaltime);
-        let up3 = new Vec3(camera.up);
-        let dir3 = new Vec3(camera.direction);
-        let pos3 = new Vec3(camera.pos);
-        if(player.RotAngX != lx || player.RotAngY != ly){
-            lx = player.RotAngX;
-            ly = player.RotAngY;
-        }else{
-            player.RotAngX *= player.RotationalDecayFactor;
-            player.RotAngY *= player.RotationalDecayFactor;
-        }
-        let RotMatAbtX = Mat3.RotMatAbtX(player.RotAngX * player.AngularSpeed);
-        let RotMatAbtY = Mat3.RotMatAbtY(player.RotAngY * player.AngularSpeed);
-        let RM = RotMatAbtX.MultMat(RotMatAbtY);
-        let newup = RM.MultVec(up3).Norm();
-        let newdir = RM.MultVec(dir3).Norm();
-        let newright = newdir.Cross3(newup).Norm();
-        camera.setLookDirection(camera.pos, newdir.ToArray(), newup.ToArray());
-        let p = false;
-        if (player.KeyInput.Start) { return true; }
-        if (player.KeyInput.Pause) { return false; }
-        if (player.KeyInput.Control) { camera.pos = defaultpos.ToArray(); }
-        if (player.KeyInput.Left) { player.Velocity.X -= player.Accel; p = true; }
-        if (player.KeyInput.Right) { player.Velocity.X += player.Accel; p = true; }
-        if (player.KeyInput.Up) { player.Velocity.Z += player.Accel; p = true; }
-        if (player.KeyInput.Down) { player.Velocity.Z -= player.Accel; p = true;} 
-        if (player.KeyInput.In) { player.Velocity.Y -= player.Accel; p = true; }
-        if (player.KeyInput.Out) { player.Velocity.Y += player.Accel; p = true; }
-        if (!p) { let v = player.Velocity;
-            player.Velocity = v.Scale(player.TranslationalDecayFactor); }
-        camera.pos = pos3.Add( newdir.Scale(player.Velocity.Z) ).Add(
-                                newup.Scale(player.Velocity.Y) ).Add(
-                                newright.Scale(player.Velocity.X)).ToArray();
         return true;
     }
     function draw(){

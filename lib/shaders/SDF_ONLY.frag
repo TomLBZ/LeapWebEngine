@@ -19,7 +19,6 @@ uniform mat4 projectionMatrix;
 uniform vec4 diffuseColor;
 uniform vec2 screenSize;
 uniform float time;
-uniform vec3 rgbinit;
 //----------------general purpose functions------------
 float dot2( in vec2 v ) { return dot(v,v); }
 float dot2( in vec3 v ) { return dot(v,v); }
@@ -779,7 +778,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord){
 }
 void LoadProcedure(out vec4 fragColor, in vec2 fragCoord, float toffset, float tload, float tfade){
     vec4 fc;    // |--offset-->|--load(fade--persist--fade)-->|--main(fade--mainImage)
-    vec4 outputc = vec4((rgbinit+.5)/256.,1.);
+    vec4 outputc = vec4(0.2, 0.9, 0.5,1.);
     if (time < toffset + tload){
         if(time > toffset){
             mainVoxelImage(fc, fragCoord);

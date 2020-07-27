@@ -29,7 +29,12 @@ Still in development... Not finished...
 - FPS controller
   - Supports rotation and translation of the camera
   - Camera positions and directions are procedurally calculated
-- TO-DO: ECS structure for better extendability
+- ECS structure for better extendability
+- Certain physics sbilities
+  - Plane-directed gravity
+  - Collision
+- Easy manipulation of the default player
+  - Smooth movement controls using wasd, space and L-shift
 
 ## How to test?
 - Online Server  

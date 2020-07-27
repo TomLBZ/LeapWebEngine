@@ -1,4 +1,4 @@
-# LeapEngine
+# LeapEngine(school project, not finished)
 3D real-time front-end game-centered rendering engine using WebGL1.
 
 ![Infinite Smooth Tunnel and Cubes](./pics/smooth_tunnel_with_cubes_infinite.png)

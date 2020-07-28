@@ -88,5 +88,5 @@ game.setEnd(end);
 //start game
 game.start();
 ```
-### Runtime Data Structure
-![progarch](./pics/progarch.png)
+### Program Structure
+![architecture](./architecture.svg)

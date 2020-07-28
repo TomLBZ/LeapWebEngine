@@ -1,4 +1,4 @@
-# LeapEngine
+# LeapEngine(school project, not finished)
 3D real-time front-end game-centered rendering engine using WebGL1.
 
 ![Infinite Smooth Tunnel and Cubes](./pics/smooth_tunnel_with_cubes_infinite.png)
@@ -29,7 +29,12 @@ Still in development... Not finished...
 - FPS controller
   - Supports rotation and translation of the camera
   - Camera positions and directions are procedurally calculated
-- TO-DO: ECS structure for better extendability
+- ECS structure for better extendability
+- Certain physics sbilities
+  - Plane-directed gravity
+  - Collision
+- Easy manipulation of the default player
+  - Smooth movement controls using wasd, space and L-shift
 
 ## How to test?
 - Online Server  
